@@ -3,6 +3,7 @@ import os, requests, json, datetime, time, random, re
 import pytz
 
 # --- 1. CONFIG & UI ---
+# App ka naam v1.1 Fusion set kar diya hai
 st.set_page_config(page_title="AmritAI v1.1 Fusion", page_icon="🎨", layout="wide")
 
 # Secrets & Timezone
@@ -10,7 +11,7 @@ GROQ_KEY = os.environ.get("GROQ_KEY")
 SECRET_YOUTUBER_CODE = "chiku03"
 IST = pytz.timezone('Asia/Kolkata')
 
-# Custom Professional CSS
+# Custom CSS for Professional Look
 st.markdown("""
     <style>
     .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; }
@@ -52,6 +53,7 @@ if "persona" not in st.session_state:
 # --- 3. SIDEBAR NAVIGATION ---
 with st.sidebar:
     st.markdown("<h1 class='amrit-title'>🚀 AmritAI Lab</h1>", unsafe_allow_html=True)
+    st.caption("Version: 1.1 Fusion")
     
     if not st.session_state.user_name:
         name = st.text_input("Enter your name:", placeholder="Amrit...")
@@ -75,13 +77,13 @@ with st.sidebar:
 # --- 4. MAIN LOGIC ---
 
 if not st.session_state.user_name:
-    st.markdown("<div class='main-card'><h2 style='text-align:center;'>🤖 Welcome to AmritAI v1.1</h2><p style='text-align:center;'>Please login from the sidebar to continue.</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-card'><h2 style='text-align:center;'>🤖 Welcome to AmritAI v1.1 Fusion</h2><p style='text-align:center;'>Please login from the sidebar to continue, Bhai!</p></div>", unsafe_allow_html=True)
 
 # --- MODE: IMAGE LAB ---
 elif menu == "🎨 Image Lab":
     st.markdown("<h2 class='amrit-title'>🎨 AI Image Generator</h2>", unsafe_allow_html=True)
     with st.container(border=True):
-        prompt_img = st.text_input("Describe your image:", placeholder="Example: A futuristic city with flying cars in anime style")
+        prompt_img = st.text_input("Describe your image:", placeholder="Example: A futuristic soldier in space, cyberpunk style")
         
         col1, col2 = st.columns(2)
         style = col1.selectbox("Style:", ["Digital Art", "Anime", "Photorealistic", "Cyberpunk", "Sketch"])
@@ -91,26 +93,28 @@ elif menu == "🎨 Image Lab":
             if prompt_img:
                 with st.spinner("AI is painting your imagination..."):
                     try:
-                        # Fixed URL Logic
+                        # Fixed URL & Seed Logic
                         seed = random.randint(1, 999999)
+                        # Clean prompt for URL
                         full_prompt = f"{prompt_img}, {style}, {quality}".replace(" ", "%20")
                         img_url = f"https://pollinations.ai/p/{full_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
                         
                         st.markdown("<div class='main-card'>", unsafe_allow_html=True)
-                        st.image(img_url, caption=f"Prompt: {prompt_img}", use_container_width=True)
+                        # Fixed width for Streamlit 1.55+
+                        st.image(img_url, caption=f"✨ {prompt_img}", width="stretch")
                         st.markdown("</div>", unsafe_allow_html=True)
-                        st.success("Image generated! Right-click to save.")
+                        st.success("Image generated! Right-click and 'Save Image As' to download.")
                     except Exception as e:
                         st.error(f"Error: {e}")
             else:
-                st.warning("Please enter a description first!")
+                st.warning("Pehle description likho bhai!")
 
 # --- MODE: TASK MANAGER ---
 elif menu == "🎯 Task Manager":
     st.header("🎯 Homework & To-Do List")
     col1, col2 = st.columns([0.8, 0.2])
     t_input = col1.text_input("New Task...")
-    if col2.button("Add") and t_input:
+    if (col2.button("Add") or (t_input and st.session_state.get('last_task') != t_input)) and t_input:
         st.session_state.tasks.append(t_input)
         st.rerun()
     
@@ -120,13 +124,13 @@ elif menu == "🎯 Task Manager":
 
 # --- MODE: AI CHAT ---
 else:
-    st.markdown(f"<h2 class='amrit-title'>💬 Chat with {st.session_state.user_name}</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 class='amrit-title'>💬 Chatting with {st.session_state.user_name}</h2>", unsafe_allow_html=True)
     
     # Display History
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]): st.write(msg["content"])
 
-    if prompt := st.chat_input("Ask anything..."):
+    if prompt := st.chat_input("Ask AmritAI anything..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.write(prompt)
 
@@ -136,9 +140,9 @@ else:
             with st.chat_message("assistant"):
                 if code == SECRET_YOUTUBER_CODE:
                     st.session_state.is_subscriber_mode = True
-                    resp = "🔥 OP Bhai! Subscriber Mode ON ho gaya hai. Swagat hai AmritAI v1.1 mein!"
+                    resp = "🔥 OP Bhai! Subscriber Mode ON ho gaya hai. Swagat hai AmritAI v1.1 Fusion mein!"
                 else:
-                    resp = "❌ Wrong Secret Code! Check Amrit's latest video."
+                    resp = "❌ Galat Code! Amrit ki video dhyan se dekho."
                 st.write(resp)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
 
@@ -163,5 +167,5 @@ else:
                     ans = res.json()["choices"][0]["message"]["content"]
                     st.write(ans)
                     st.session_state.messages.append({"role": "assistant", "content": ans})
-                except:
-                    st.error("API Error! Please check your GROQ_KEY in Streamlit Secrets.")
+                except Exception as e:
+                    st.error(f"⚠️ API Error: {e}. Check your GROQ_KEY in Secrets.")
