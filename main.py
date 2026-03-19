@@ -3,61 +3,70 @@ import os, requests, json, datetime, time, re
 import pytz
 
 # --- 1. CONFIG & UI ---
-st.set_page_config(page_title="AmritAI v1.1 Fusion", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="AmritAI v1.1 Fusion", page_icon="🤖", layout="wide")
 
 GROQ_KEY = os.environ.get("GROQ_KEY")
 SECRET_YOUTUBER_CODE = "chiku03"
 IST = pytz.timezone('Asia/Kolkata')
 
-# Professional Dark Theme CSS
 st.markdown("""
     <style>
     .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; }
     .main-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
         border-radius: 15px; padding: 25px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         margin-bottom: 20px;
     }
-    .amrit-title { color: #00f2fe; text-align: center; text-shadow: 0 0 15px #00f2fe; }
-    .stButton>button { border-radius: 20px; background: #00f2fe; color: black; font-weight: bold; width: 100%; }
-    code { color: #ff79c6 !important; }
+    .amrit-title { color: #00f2fe; text-align: center; text-shadow: 0 0 15px #00f2fe; font-family: 'Trebuchet MS'; }
+    .stButton>button { border-radius: 20px; background: #00f2fe; color: black; font-weight: bold; width: 100%; transition: 0.3s; }
+    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px #00f2fe; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. SESSION STATE ---
+# --- 2. INTELLIGENT HELPERS ---
+def get_smart_greeting():
+    now = datetime.datetime.now(IST)
+    hour = now.hour
+    if 5 <= hour < 12:
+        return "🌅 Good Morning, Amrit! Aaj kya naya build karna hai?"
+    elif 12 <= hour < 17:
+        return "☀️ Good Afternoon! Kaise chal rahi hai coding?"
+    elif 17 <= hour < 21:
+        return "🌆 Good Evening! Chai-vibe aur AI, perfect combination."
+    else:
+        return "🌙 Late Night Session? AmritAI is active!"
+
+# --- 3. SESSION STATE ---
 if "messages" not in st.session_state: st.session_state.messages = []
 if "tasks" not in st.session_state: st.session_state.tasks = []
 if "user_name" not in st.session_state: st.session_state.user_name = None
 if "is_subscriber_mode" not in st.session_state: st.session_state.is_subscriber_mode = False
-
-# --- 3. HELPER FUNCTIONS ---
-def get_custom_greeting():
-    now = datetime.datetime.now(IST)
-    hour = now.hour
-    if 5 <= hour < 12: return "Good Morning ☀️"
-    elif 12 <= hour < 17: return "Good Afternoon 🌤️"
-    elif 17 <= hour < 21: return "Good Evening 🌆"
-    else: return "Good Night 🌙"
+# AI Persona ko thoda intelligent aur "Witty" banaya hai
+if "persona" not in st.session_state: 
+    st.session_state.persona = """You are AmritAI v1.1 Fusion, an intelligent and witty AI built by Amrit Pathak. 
+    Speak in a mix of Hindi and English (Hinglish). Be helpful, creative, and sometimes crack jokes. 
+    If someone asks who made you, proudly say Amrit Pathak. If subscriber mode is OFF, be a professional friend."""
 
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.markdown("<h1 class='amrit-title'>🚀 AmritAI Lab</h1>", unsafe_allow_html=True)
-    st.caption("v1.1 Fusion | Coding Pro Edition")
+    st.caption("v1.1 Fusion | Smart Edition")
     
     if not st.session_state.user_name:
-        name = st.text_input("Enter your name:")
-        if st.button("Access 🔑"):
-            st.session_state.user_name = name
-            st.rerun()
+        name = st.text_input("Apna naam likho:", key="login_name")
+        if st.button("Enter AI Zone 🔑"):
+            if name:
+                st.session_state.user_name = name
+                st.rerun()
     else:
-        st.success(f"User: **{st.session_state.user_name}**")
+        st.success(f"Logged in as: **{st.session_state.user_name}**")
         if st.session_state.is_subscriber_mode:
             st.warning("🔥 SUBSCRIBER MODE: ON")
         
         st.divider()
-        menu = st.radio("Navigation:", ["💬 Coding Engine", "🎯 My Tasks"])
+        menu = st.radio("Navigation:", ["💬 Smart Chat", "🎯 My Tasks", "⚙️ Brain Settings"])
         
         if st.button("🚪 Logout"):
             st.session_state.user_name = None
@@ -67,38 +76,47 @@ with st.sidebar:
 # --- 5. MAIN CONTENT ---
 
 if not st.session_state.user_name:
-    st.markdown(f"<div class='main-card'><h2 style='text-align:center;'>🤖 Welcome to AmritAI v1.1</h2><p style='text-align:center;'>Bhai, login karke coding shuru karo!</p></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='main-card'><h2 style='text-align:center;'>🤖 Welcome to AmritAI</h2><p style='text-align:center;'>{get_smart_greeting()}</p></div>", unsafe_allow_html=True)
 
 elif menu == "🎯 My Tasks":
     st.header("🎯 Task Manager")
     col1, col2 = st.columns([0.8, 0.2])
-    t_input = col1.text_input("Add a new task...")
+    t_input = col1.text_input("Homework ya project task likho...")
     if col2.button("Add") and t_input:
         st.session_state.tasks.append(t_input)
         st.rerun()
-    for t in st.session_state.tasks: st.write(f"✅ {t}")
+    
+    for i, t in enumerate(st.session_state.tasks):
+        st.write(f"✅ {t}")
     if st.button("Clear All"): st.session_state.tasks = []; st.rerun()
 
-else: # CODING ENGINE
-    greeting = get_custom_greeting()
-    st.markdown(f"<h2 class='amrit-title'>{greeting}, {st.session_state.user_name}!</h2>", unsafe_allow_html=True)
+elif menu == "⚙️ Brain Settings":
+    st.header("⚙️ AI Intelligence Control")
+    st.write("Yahan se tum AI ka behavior modify kar sakte ho.")
+    new_p = st.text_area("Update System Instructions:", value=st.session_state.persona, height=150)
+    if st.button("Update Intelligence"):
+        st.session_state.persona = new_p
+        st.success("Brain Updated! Ab AI naye tarike se sochega.")
+
+else: # SMART CHAT ENGINE
+    st.markdown(f"<h3 style='text-align:center;'>{get_smart_greeting()}</h3>", unsafe_allow_html=True)
     
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]): st.write(msg["content"])
 
-    if prompt := st.chat_input("Write code or ask a doubt..."):
+    if prompt := st.chat_input("AmritAI se kuch pucho..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.write(prompt)
 
-        # Commands
+        # Commands Check
         if prompt.lower().startswith("/secret"):
             code = prompt.replace("/secret", "").strip()
             with st.chat_message("assistant"):
                 if code == SECRET_YOUTUBER_CODE:
                     st.session_state.is_subscriber_mode = True
-                    resp = "🔥 OP Bhai! Coding Mode + YouTuber Swag Activated!"
+                    resp = "🔥 OP Bhai! Subscriber mode ON! Ab system YouTuber style mein response dega. Gajab!"
                 else:
-                    resp = "❌ Code galat hai!"
+                    resp = "❌ Galat code! Sahi secret try karo."
                 st.write(resp)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
 
@@ -107,23 +125,16 @@ else: # CODING ENGINE
             st.rerun()
 
         else:
+            # GROQ INTELLIGENCE CALL
             with st.chat_message("assistant"):
                 try:
-                    # PRO CODING PERSONA (Claude/Gemini Style)
-                    sys_p = """You are AmritAI v1.1 Fusion, an elite coding expert built by Amrit Pathak. 
-                    Your coding skills are on par with Claude 3.5 and Gemini 1.5 Pro. 
-                    1. Write clean, efficient, and well-commented code.
-                    2. Explain logic step-by-step.
-                    3. If there is a bug, find it and fix it immediately.
-                    4. Speak in Hinglish but keep technical terms in English.
-                    5. Use Markdown for code blocks."""
-                    
+                    sys_p = st.session_state.persona
                     if st.session_state.is_subscriber_mode:
-                        sys_p += " Also, add a bit of YouTuber swag like 'Bhai' and 'Op' in your explanations."
+                        sys_p += " Current Mode: Energetic Indian YouTuber. Use slang like 'Op', 'Bhai', 'Bawa'."
 
-                    headers = {"Authorization": f"Bearer {GROQ_KEY}"}
+                    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
                     payload = {
-                        "model": "llama-3.3-70b-versatile", # One of the best for coding
+                        "model": "llama-3.3-70b-versatile",
                         "messages": [{"role": "system", "content": sys_p}, *st.session_state.messages]
                     }
                     res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
@@ -131,4 +142,4 @@ else: # CODING ENGINE
                     st.write(ans)
                     st.session_state.messages.append({"role": "assistant", "content": ans})
                 except:
-                    st.error("API Error! Key check karo.")
+                    st.error("API Error! Secrets mein key check karo.")
