@@ -1,115 +1,108 @@
 import streamlit as st
-import os, requests, json, datetime, time, re
+import os, requests, json, datetime, time
 import pytz
 
 # --- 1. CONFIG & UI ---
-st.set_page_config(page_title="AmritAI v1.2 Fusion", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="AmritAI v1.4 Desi Fusion", page_icon="🔥", layout="wide")
 
 GROQ_KEY = os.environ.get("GROQ_KEY")
-SECRET_YOUTUBER_CODE = "chiku03"
 IST = pytz.timezone('Asia/Kolkata')
 
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #0f0c29, #1a1a2e, #16213e); color: white; }
-    .amrit-title { color: #00f2fe; text-align: center; text-shadow: 0 0 15px #00f2fe; }
-    .thinking-box { background: rgba(0, 242, 254, 0.05); border-radius: 10px; padding: 15px; border-left: 4px solid #00f2fe; margin-bottom: 15px; }
+    .stApp { background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); color: white; }
+    .desi-card {
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 15px; padding: 20px;
+        border: 2px solid #fdbb2d;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+    .amrit-title { 
+        font-family: 'Courier New', monospace;
+        color: #fdbb2d; text-align: center; font-size: 45px; font-weight: bold;
+        text-shadow: 3px 3px 0px #b21f1f;
+    }
+    .thinking-box { 
+        background: rgba(253, 187, 45, 0.1); 
+        border-left: 5px solid #fdbb2d; 
+        padding: 15px; font-style: italic; color: #fdbb2d;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. SESSION STATE ---
 if "messages" not in st.session_state: st.session_state.messages = []
-if "user_name" not in st.session_state: st.session_state.user_name = None
-if "is_subscriber_mode" not in st.session_state: st.session_state.is_subscriber_mode = False
-if "reasoning_on" not in st.session_state: st.session_state.reasoning_on = False
+if "bhojpuri_mode" not in st.session_state: st.session_state.bhojpuri_mode = False
 
 # --- 3. SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h1 class='amrit-title'>🚀 AmritAI Lab</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#fdbb2d;'>🚩 AmritAI Desi</h1>", unsafe_allow_html=True)
+    st.divider()
     
-    if not st.session_state.user_name:
-        u_name = st.text_input("Enter Name:")
-        if st.button("Login 🔑"):
-            st.session_state.user_name = u_name
-            st.rerun()
-    else:
-        st.success(f"Hi, **{st.session_state.user_name}**!")
-        
-        st.divider()
-        st.subheader("🧠 Intelligence")
-        # Reasoning Toggle
-        reason_val = st.toggle("Chain of Thought (CoT)", value=st.session_state.reasoning_on)
-        st.session_state.reasoning_on = reason_val
-        
-        if reason_val:
-            st.info("AI ab 'Deep Thinking' mode mein hai.")
-        
-        st.divider()
-        if st.button("🗑️ Clear Chat"):
-            st.session_state.messages = []
-            st.rerun()
-        if st.button("🚪 Logout"):
-            st.session_state.user_name = None
-            st.rerun()
+    st.subheader("⚙️ System Settings")
+    # THE BEST UPDATE: BHOJPURI TOGGLE
+    b_mode = st.toggle("🪕 Bhojpuri Mode (Desi Style)", value=st.session_state.bhojpuri_mode)
+    st.session_state.bhojpuri_mode = b_mode
+    
+    st.divider()
+    reason_on = st.toggle("🧠 Reasoning (Chain of Thought)", value=True)
+    
+    if st.button("🗑️ Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
 
-# --- 4. CHAT INTERFACE ---
-if not st.session_state.user_name:
-    st.info("Bhai, login kar lo sidebar se!")
-else:
-    st.markdown(f"<h3 class='amrit-title'>💬 Smart Chat Engine</h3>", unsafe_allow_html=True)
+# --- 4. MAIN INTERFACE ---
+st.markdown("<h1 class='amrit-title'>AMRIT-AI v1.4 FUSION</h1>", unsafe_allow_html=True)
 
-    # Show History
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]): st.write(msg["content"])
+if st.session_state.bhojpuri_mode:
+    st.warning("🔥 Bhojpuri Mode Chalu Ba! Ab AI ekdum garda machai.")
 
-    if prompt := st.chat_input("AmritAI se logical sawaal pucho..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.write(prompt)
+# Display Chat
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]): st.write(msg["content"])
 
-        with st.chat_message("assistant"):
-            try:
-                # ADVANCED SYSTEM PROMPT
-                sys_p = "You are AmritAI, built by Amrit Pathak. Speak in Hinglish."
-                
-                if st.session_state.reasoning_on:
-                    # AI ko instructions di hain ki wo 'THOUGHT:' tag use kare
-                    sys_p += """
-                    ULTRA REASONING MODE:
-                    1. Pehle 'THOUGHT:' tag ke andar apni step-by-step logic aur reasoning likho.
-                    2. Dekho ki sawal mein koi trick (jaise 'survivors' wala point) toh nahi hai.
-                    3. Phir 'FINAL ANSWER:' tag ke baad main jawab do.
-                    4. Be logical and super smart.
-                    """
-                
-                if st.session_state.is_subscriber_mode:
-                    sys_p += " Personality: Energetic YouTuber."
+if prompt := st.chat_input("Kaise ho bhai? Kuch pucho..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"): st.write(prompt)
 
-                headers = {"Authorization": f"Bearer {GROQ_KEY}"}
-                payload = {
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [{"role": "system", "content": sys_p}, *st.session_state.messages],
-                    "temperature": 0.5 if st.session_state.reasoning_on else 0.8
-                }
+    with st.chat_message("assistant"):
+        try:
+            # DESI SYSTEM PROMPT
+            sys_p = "You are AmritAI, built by Amrit Pathak. "
+            if st.session_state.bhojpuri_mode:
+                sys_p += """
+                PERSONALITY: You are a witty, smart, and helpful person from Bihar/UP. 
+                LANGUAGE: Use Bhojpuri-Hindi mix. Use words like 'Garda', 'Ka ho', 'Babua', 'Bujhala'. 
+                STYLE: Be funny but very intelligent.
+                """
+            else:
+                sys_p += "Use Hinglish. Be professional and smart."
 
-                with st.spinner("🤔 Analyzing Logic..."):
-                    res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-                    full_response = res.json()["choices"][0]["message"]["content"]
+            if reason_on:
+                sys_p += " Use Chain of Thought. Start with 'THOUGHT:' and then 'FINAL ANSWER:'."
 
-                    # --- CHAIN OF THOUGHT LOGIC ---
-                    if st.session_state.reasoning_on and "THOUGHT:" in full_response:
-                        # Thought aur Final Answer ko alag karna
-                        parts = full_response.split("FINAL ANSWER:")
-                        thought_part = parts[0].replace("THOUGHT:", "").strip()
-                        final_part = parts[1].strip() if len(parts) > 1 else "Error processing logic."
-                        
-                        # Expandable box for Thought process
-                        with st.expander("👁️ View AI's Thought Process", expanded=True):
-                            st.markdown(f"<div class='thinking-box'>{thought_part}</div>", unsafe_allow_html=True)
-                        
-                        st.write(final_part)
-                        st.session_state.messages.append({"role": "assistant", "content": final_part})
-                    else:
-                        st.write(full_response)
-                        st.session_state.messages.append({"role": "assistant", "content": full_response})
-            except Exception as e:
-                st.error(f"⚠️ Error: {e}. Key check karo bhai.")
+            headers = {"Authorization": f"Bearer {GROQ_KEY}"}
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "system", "content": sys_p}, *st.session_state.messages[-6:]],
+                "temperature": 0.7
+            }
+
+            with st.spinner("🤔 AI Sochat ba..." if st.session_state.bhojpuri_mode else "Thinking..."):
+                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+                full_res = res.json()["choices"][0]["message"]["content"]
+
+                if reason_on and "THOUGHT:" in full_res:
+                    parts = full_res.split("FINAL ANSWER:")
+                    thought = parts[0].replace("THOUGHT:", "").strip()
+                    answer = parts[1].strip() if len(parts) > 1 else full_res
+                    
+                    with st.expander("👁️ Dekha AI ka Dimag (Thought)", expanded=True):
+                        st.markdown(f"<div class='thinking-box'>{thought}</div>", unsafe_allow_html=True)
+                    st.write(answer)
+                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                else:
+                    st.write(full_res)
+                    st.session_state.messages.append({"role": "assistant", "content": full_res})
+        except:
+            st.error("Galti ho gail! API key check kara babua.")
