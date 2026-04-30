@@ -3,146 +3,118 @@ import os, requests, json, datetime
 import pytz
 from duckduckgo_search import DDGS
 
-# --- 1. CONFIG & STYLING ---
-st.set_page_config(page_title="AmritAI v1.6 Infinity", page_icon="♾️", layout="wide")
+# --- 1. CONFIG & UI ---
+st.set_page_config(page_title="AmritAI v1.7 Pro", page_icon="⚡", layout="wide")
 
 GROQ_KEY = os.environ.get("GROQ_KEY")
 IST = pytz.timezone('Asia/Kolkata')
 
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #0f0c29, #1a1a2e, #16213e); color: white; }
+    .stApp { background-color: #0e1117; color: #ffffff; }
     .amrit-title { 
-        font-family: 'Orbitron', sans-serif;
-        background: -webkit-linear-gradient(#00f2fe, #4facfe);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-align: center; font-size: 40px; font-weight: bold;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #00d4ff; text-align: center; font-size: 35px; font-weight: 700;
+        letter-spacing: 2px;
     }
     .thinking-box { 
-        background: rgba(0, 242, 254, 0.1); 
-        border-left: 4px solid #00f2fe; 
-        padding: 15px; border-radius: 10px;
-        margin-bottom: 20px; font-family: 'Courier New', monospace;
+        background: rgba(255, 255, 255, 0.05); 
+        border-left: 4px solid #00d4ff; 
+        padding: 12px; border-radius: 8px;
+        margin-bottom: 20px; font-size: 14px; color: #a0a0a0;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. SESSION STATE MANAGEMENT ---
-if "messages" not in st.session_state: st.session_state.messages = []
-if "bhojpuri_mode" not in st.session_state: st.session_state.bhojpuri_mode = True
-if "reasoning_on" not in st.session_state: st.session_state.reasoning_on = True
-
-# --- 3. HELPER FUNCTIONS (The Brain) ---
-
-def get_current_context():
-    """Automatically gets the date and time"""
+# --- 2. LOGIC FUNCTIONS ---
+def get_time_info():
     now = datetime.datetime.now(IST)
     return {
-        "date": now.strftime("%d %B %Y"),
-        "time": now.strftime("%I:%M %p"),
+        "full": now.strftime("%d %B %Y, %I:%M %p"),
         "day": now.strftime("%A")
     }
 
 def web_search(query):
-    """Unlimited Free Search using DuckDuckGo"""
     try:
         with DDGS() as ddgs:
             results = [r for r in ddgs.text(query, max_results=3)]
-            context = "\n".join([f"Source: {r['href']}\nInfo: {r['body']}" for r in results])
-            return context if context else "No live info found."
-    except Exception as e:
-        return f"Search error: {e}"
+            return "\n".join([f"Source: {r['href']}\nInfo: {r['body']}" for r in results])
+    except:
+        return "Search failed, but I will answer based on my knowledge."
 
-# --- 4. SIDEBAR ---
+# --- 3. SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align:center;'>🚀 AmritAI Lab</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#00d4ff;'>🛠️ Control Center</h2>", unsafe_allow_html=True)
     st.divider()
-    
-    st.subheader("System Toggles")
-    st.session_state.bhojpuri_mode = st.toggle("🪕 Bhojpuri Mode", value=st.session_state.bhojpuri_mode)
-    st.session_state.reasoning_on = st.toggle("🧠 Reasoning Mode (CoT)", value=st.session_state.reasoning_on)
-    
+    reasoning_on = st.toggle("Show AI Thinking (CoT)", value=True)
     st.divider()
-    ctx = get_current_context()
-    st.info(f"📅 {ctx['date']}\n\n⏰ {ctx['time']}\n\n🌍 Ghaziabad, India")
-    
-    if st.button("🗑️ Clear Chat History"):
+    t_info = get_time_info()
+    st.write(f"📅 **Date:** {t_info['full']}")
+    st.write(f"📍 **Location:** Ghaziabad")
+    if st.button("Clear Chat History"):
         st.session_state.messages = []
         st.rerun()
 
-# --- 5. MAIN CHAT INTERFACE ---
-st.markdown("<h1 class='amrit-title'>AMRIT-AI v1.6 PRO</h1>", unsafe_allow_html=True)
+# --- 4. CHAT INTERFACE ---
+st.markdown("<h1 class='amrit-title'>AMRIT-AI PRO v1.7</h1>", unsafe_allow_html=True)
 
-# Display Chat History
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+    with st.chat_message(msg["role"]): st.write(msg["content"])
 
-# User Input
-if prompt := st.chat_input("Pucha babua, ka haal ba?"):
+if prompt := st.chat_input("Ask me anything..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.write(prompt)
 
     with st.chat_message("assistant"):
         try:
-            # 1. Automatic Context Building
-            ctx = get_current_context()
+            # Automatic context gathering
+            t_info = get_time_info()
             live_data = ""
             
-            # 2. Check if Search is needed (Simple Keyword Check)
-            search_keywords = ["today", "weather", "score", "news", "khabar", "mausam", "aaj"]
-            if any(word in prompt.lower() for word in search_keywords):
-                with st.spinner("🌐 Internet pe khojat baani..."):
+            # Smart Search Trigger
+            search_words = ["weather", "news", "score", "today", "latest", "price", "match"]
+            if any(w in prompt.lower() for w in search_words):
+                with st.spinner("Searching the web for latest info..."):
                     live_data = web_search(prompt)
 
-            # 3. Dynamic System Prompt
+            # System Prompt (Strictly Hinglish)
             sys_p = f"""
-            You are AmritAI v1.6, an advanced AI developed by Amrit Pathak.
-            AUTONOMOUS CONTEXT:
-            - Current Date: {ctx['date']}
-            - Current Time: {ctx['time']}
-            - Current Day: {ctx['day']}
-            - Location: Ghaziabad, UP, India.
-            - User: Amrit (11 years old, Air Force School Hindan).
+            You are AmritAI v1.7, created by Amrit Pathak.
+            - Current Context: {t_info['full']}, {t_info['day']}.
+            - Language: Hinglish (Natural Hindi + English mix).
+            - Style: Smart, helpful, peer-like.
+            - Real-time Data: {live_data}
             
-            PERSONALITY:
-            - Language: {'Bhojpuri-Hindi mix' if st.session_state.bhojpuri_mode else 'Hinglish'}.
-            - Tone: Smart, Witty, and Desi.
-            
-            REAL-TIME DATA:
-            {live_data if live_data else "No specific search needed for this query."}
-
-            STRICT RULE:
-            If Reasoning Mode is ON, always start your response with 'THOUGHT:' followed by your logic, 
-            and then 'FINAL ANSWER:' for the user response.
+            STRICT FORMAT:
+            If Reasoning is enabled, start with 'THOUGHT:' for your internal logic, 
+            then 'FINAL ANSWER:' for the user.
             """
 
-            # 4. API Call to Groq
             headers = {"Authorization": f"Bearer {GROQ_KEY}"}
             payload = {
                 "model": "llama-3.3-70b-versatile",
                 "messages": [{"role": "system", "content": sys_p}, *st.session_state.messages[-6:]],
-                "temperature": 0.6
+                "temperature": 0.7
             }
 
-            with st.spinner("🧠 AmritAI Sochat ba..." if st.session_state.bhojpuri_mode else "Thinking..."):
+            with st.spinner("Processing..."):
                 response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-                full_text = response.json()["choices"][0]["message"]["content"]
+                res_content = response.json()["choices"][0]["message"]["content"]
 
-                # 5. Handle Reasoning Output
-                if st.session_state.reasoning_on and "THOUGHT:" in full_text:
-                    parts = full_text.split("FINAL ANSWER:")
-                    thought_process = parts[0].replace("THOUGHT:", "").strip()
-                    final_output = parts[1].strip() if len(parts) > 1 else full_text
-                    
-                    with st.expander("👁️ View AI's Thought Process", expanded=True):
-                        st.markdown(f"<div class='thinking-box'>{thought_process}</div>", unsafe_allow_html=True)
-                    st.write(final_output)
-                    st.session_state.messages.append({"role": "assistant", "content": final_output})
+                if reasoning_on and "THOUGHT:" in res_content:
+                    parts = res_content.split("FINAL ANSWER:")
+                    thought = parts[0].replace("THOUGHT:", "").strip()
+                    answer = parts[1].strip() if len(parts) > 1 else res_content
+                    with st.expander("👁️ View Reasoning", expanded=False):
+                        st.markdown(f"<div class='thinking-box'>{thought}</div>", unsafe_allow_html=True)
+                    st.write(answer)
                 else:
-                    st.write(full_text)
-                    st.session_state.messages.append({"role": "assistant", "content": full_text})
-                    
+                    st.write(res_content)
+                
+                st.session_state.messages.append({"role": "assistant", "content": res_content})
+
         except Exception as e:
-            st.error(f"⚠️ Arre babua, error aa gail: {e}")
+            st.error("Bhai, system mein kuch error hai. API check karo!")
