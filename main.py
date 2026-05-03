@@ -3,141 +3,120 @@ import os, requests, datetime
 import pytz
 from duckduckgo_search import DDGS
 
-# --- 1. CONFIG & STYLING ---
-st.set_page_config(page_title="AmritAI v1.9 (Command Mode)", page_icon="⚡", layout="wide")
-
-GROQ_KEY = os.environ.get("GROQ_KEY")
+# --- 1. CONFIG & STYLE ---
+st.set_page_config(page_title="AmritAI v2.0 Pro", page_icon="🌐", layout="wide")
+GROQ_KEY = os.environ.get("GROQ_KEY") # Apni API Key yahan set karein
 IST = pytz.timezone('Asia/Kolkata')
 
 st.markdown("""
     <style>
-    .stApp { background-color: #0d1117; color: #e6edf3; }
-    .title-text { 
-        text-align: center; color: #58a6ff; font-family: 'Trebuchet MS';
-        font-size: 38px; font-weight: bold; margin-bottom: 10px;
-    }
-    .web-tag { 
-        background-color: #238636; color: white; padding: 2px 8px; 
-        border-radius: 5px; font-size: 12px; font-weight: bold;
-    }
-    .thought-box {
-        background-color: #161b22; border-left: 4px solid #30363d;
-        padding: 15px; border-radius: 5px; color: #8b949e; font-style: italic;
+    .stApp { background-color: #0d1117; color: #ffffff; }
+    .search-header { color: #00d4ff; font-weight: bold; font-size: 24px; }
+    .summary-box { 
+        background: #161b22; border: 1px solid #30363d; 
+        padding: 20px; border-radius: 10px; margin-top: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CORE FUNCTIONS ---
-
-def get_live_web_data(query):
-    """DuckDuckGo Search Logic - Scans websites for snippets"""
+# --- 2. THE SEARCH & SCRAPE ENGINE ---
+def get_web_summary_data(query):
+    """
+    Ye function wahi 'q=...' wala kaam karta hai.
+    Internet se snippets nikaal kar ek raw text banata hai.
+    """
     try:
         with DDGS() as ddgs:
-            # Adding 2026 for better accuracy
-            search_query = f"{query} current updates 2026"
-            results = [r for r in ddgs.text(search_query, max_results=4)]
+            # Hum query mein 'latest 2026' add kar dete hain taaki results fresh aayein
+            search_query = f"{query} latest updates 2026"
+            results = [r for r in ddgs.text(search_query, max_results=5)]
             
-            context = "LATEST WEB SEARCH RESULTS:\n"
-            for r in results:
-                context += f"- Source: {r['href']}\n  Snippet: {r['body']}\n\n"
-            return context
+            if not results:
+                return None
+                
+            raw_context = ""
+            for i, r in enumerate(results):
+                raw_context += f"SOURCE {i+1} [{r['href']}]: {r['body']}\n\n"
+            return raw_context
     except Exception as e:
-        return f"Web search failed: {e}"
+        return f"Error fetching data: {e}"
 
-def get_context():
-    now = datetime.datetime.now(IST)
-    return {
-        "date": now.strftime("%d %B %Y"),
-        "time": now.strftime("%I:%M %p"),
-        "day": now.strftime("%A")
-    }
+# --- 3. UI LAYOUT ---
+st.markdown("<h1 style='text-align:center;'>⚡ AmritAI Pro v2.0</h1>", unsafe_allow_html=True)
+st.caption("Tip: Type **/web** followed by your question for live internet summary.")
 
-# --- 3. SESSION STATE ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# --- 4. SIDEBAR ---
+# Sidebar for status
 with st.sidebar:
-    st.markdown("## ⚙️ Control Panel")
-    show_thoughts = st.toggle("Show AI Thinking", value=True)
+    st.header("📊 System Status")
+    now = datetime.datetime.now(IST)
+    st.write(f"📅 **Date:** {now.strftime('%d %B %Y')}")
+    st.write(f"📍 **Location:** Ghaziabad")
     st.divider()
-    ctx = get_context()
-    st.write(f"📅 **Date:** {ctx['date']}")
-    st.write(f"⏰ **Time:** {ctx['time']}")
-    st.write(f"📍 **Loc:** Ghaziabad, UP")
-    
-    if st.button("Clear Chat"):
-        st.session_state.messages = []
+    if st.button("Clear Memory"):
+        st.session_state.chat_history = []
         st.rerun()
 
-# --- 5. CHAT UI ---
-st.markdown("<div class='title-text'>AMRIT-AI v1.9 PRO</div>", unsafe_allow_html=True)
-st.caption("Use <span class='web-tag'>/web</span> before your message to search the internet.", unsafe_allow_html=True)
-
-# Display Messages
-for msg in st.session_state.messages:
+# --- 4. CHAT LOGIC ---
+for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# User Input
-if prompt := st.chat_input("Kaise madad karun, Amrit?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+if prompt := st.chat_input("Kaise madad karun?"):
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
 
     with st.chat_message("assistant"):
-        web_info = ""
-        is_web_search = prompt.lower().strip().startswith("/web")
+        raw_web_data = ""
+        is_search = prompt.lower().strip().startswith("/web")
 
-        # Logical Routing
-        if is_web_search:
-            clean_query = prompt.lower().replace("/web", "").strip()
-            with st.spinner(f"🌐 Scraping web for '{clean_query}'..."):
-                web_info = get_live_web_data(clean_query)
+        # STEP 1: If /web is detected, trigger search
+        if is_search:
+            actual_query = prompt.lower().replace("/web", "").strip()
+            with st.spinner(f"🔍 Searching websites for '{actual_query}'..."):
+                raw_web_data = get_web_summary_data(actual_query)
         
-        # Build System Prompt
-        sys_p = f"""
-        You are AmritAI v1.9, developed by Amrit Pathak.
-        CONTEXT: Today is {ctx['day']}, {ctx['date']}. Time: {ctx['time']}.
-        LANGUAGE: Natural Hinglish (Mix of Hindi & English).
+        # STEP 2: System Prompt Engineering (LLM Instruction)
+        current_date = datetime.datetime.now(IST).strftime("%d %B %Y")
         
-        WEB SEARCH MODE:
-        - Active: {is_web_search}
-        - Data Provided: {web_info if web_info else "None requested."}
-        
-        INSTRUCTIONS:
-        1. If /web mode is active, strictly prioritize the 'Data Provided' above.
-        2. If NOT active, do not guess live facts like scores or prices.
-        3. Keep the tone like a helpful peer/friend.
-        
-        FORMAT:
-        THOUGHT: (Briefly explain your logic)
-        FINAL ANSWER: (The actual response)
-        """
+        if is_search and raw_web_data:
+            sys_p = f"""
+            You are a Web Intelligence Expert.
+            DATE: {current_date}
+            
+            TASK: Use the RAW WEB DATA below to answer the user's query: "{actual_query}".
+            
+            RAW WEB DATA:
+            ---
+            {raw_web_data}
+            ---
+            
+            INSTRUCTIONS:
+            1. Summarize the information clearly in Hinglish.
+            2. Mention the facts found in the sources.
+            3. If the data is missing, say you couldn't find specific live info.
+            4. Keep it friendly but accurate.
+            """
+        else:
+            sys_p = f"You are AmritAI, a helpful assistant. Today is {current_date}. Speak in Hinglish."
 
+        # STEP 3: API Call to Groq
         try:
             headers = {"Authorization": f"Bearer {GROQ_KEY}"}
             payload = {
                 "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "system", "content": sys_p}, *st.session_state.messages[-6:]],
-                "temperature": 0.6
+                "messages": [{"role": "system", "content": sys_p}, *st.session_state.chat_history[-5:]],
+                "temperature": 0.5
             }
-
-            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-            full_res = response.json()["choices"][0]["message"]["content"]
-
-            if "THOUGHT:" in full_res and "FINAL ANSWER:" in full_res:
-                parts = full_res.split("FINAL ANSWER:")
-                thought = parts[0].replace("THOUGHT:", "").strip()
-                answer = parts[1].strip()
-                
-                if show_thoughts:
-                    st.markdown(f"<div class='thought-box'><b>Logic:</b> {thought}</div>", unsafe_allow_html=True)
-                st.write(answer)
-                st.session_state.messages.append({"role": "assistant", "content": answer})
-            else:
-                st.write(full_res)
-                st.session_state.messages.append({"role": "assistant", "content": full_res})
+            
+            res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+            ans = res.json()["choices"][0]["message"]["content"]
+            
+            st.markdown(f"<div class='summary-box'>{ans}</div>", unsafe_allow_html=True)
+            st.session_state.chat_history.append({"role": "assistant", "content": ans})
 
         except Exception as e:
-            st.error(f"Bhai error aa gaya: {e}")
+            st.error(f"Bhai, API call fail ho gayi: {e}")
