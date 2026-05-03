@@ -1,4 +1,4 @@
 streamlit
 requests
 pytz
-duckduckgo-search
+tavily
