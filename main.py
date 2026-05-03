@@ -3,107 +3,141 @@ import os, requests, datetime
 import pytz
 from duckduckgo_search import DDGS
 
-# --- 1. CONFIG & STYLE ---
-st.set_page_config(page_title="AmritAI v1.8 Search-First", page_icon="🔍", layout="wide")
+# --- 1. CONFIG & STYLING ---
+st.set_page_config(page_title="AmritAI v1.9 (Command Mode)", page_icon="⚡", layout="wide")
+
 GROQ_KEY = os.environ.get("GROQ_KEY")
 IST = pytz.timezone('Asia/Kolkata')
 
-# --- 2. THE SEARCH ENGINE LOGIC ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #0d1117; color: #e6edf3; }
+    .title-text { 
+        text-align: center; color: #58a6ff; font-family: 'Trebuchet MS';
+        font-size: 38px; font-weight: bold; margin-bottom: 10px;
+    }
+    .web-tag { 
+        background-color: #238636; color: white; padding: 2px 8px; 
+        border-radius: 5px; font-size: 12px; font-weight: bold;
+    }
+    .thought-box {
+        background-color: #161b22; border-left: 4px solid #30363d;
+        padding: 15px; border-radius: 5px; color: #8b949e; font-style: italic;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 2. CORE FUNCTIONS ---
+
 def get_live_web_data(query):
-    """
-    Ye function Google/DuckDuckGo par jaakar websites ki 
-    summary aur links nikaalta hai.
-    """
+    """DuckDuckGo Search Logic - Scans websites for snippets"""
     try:
         with DDGS() as ddgs:
-            # Movie queries ke liye hum 'latest' aur '2026' add kar dete hain accuracy ke liye
-            enhanced_query = f"{query} latest updates 2026"
-            results = [r for r in ddgs.text(enhanced_query, max_results=4)]
+            # Adding 2026 for better accuracy
+            search_query = f"{query} current updates 2026"
+            results = [r for r in ddgs.text(search_query, max_results=4)]
             
-            context = "WEBSITE DATA FOUND:\n"
+            context = "LATEST WEB SEARCH RESULTS:\n"
             for r in results:
-                context += f"- Title: {r['title']}\n  Info: {r['body']}\n  Link: {r['href']}\n\n"
+                context += f"- Source: {r['href']}\n  Snippet: {r['body']}\n\n"
             return context
     except Exception as e:
-        return f"Web Search Error: {e}"
+        return f"Web search failed: {e}"
 
-# --- 3. UI LAYOUT ---
-st.markdown("<h1 style='text-align:center; color:#00d4ff;'>🔍 AmritAI Search-First Edition</h1>", unsafe_allow_html=True)
+def get_context():
+    now = datetime.datetime.now(IST)
+    return {
+        "date": now.strftime("%d %B %Y"),
+        "time": now.strftime("%I:%M %p"),
+        "day": now.strftime("%A")
+    }
 
+# --- 3. SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Sidebar info
+# --- 4. SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Settings")
-    show_reasoning = st.toggle("Show Thinking Process", value=True)
-    now = datetime.datetime.now(IST)
-    st.info(f"📅 Date: {now.strftime('%d %B %Y')}\n\n📍 Location: Ghaziabad")
+    st.markdown("## ⚙️ Control Panel")
+    show_thoughts = st.toggle("Show AI Thinking", value=True)
+    st.divider()
+    ctx = get_context()
+    st.write(f"📅 **Date:** {ctx['date']}")
+    st.write(f"⏰ **Time:** {ctx['time']}")
+    st.write(f"📍 **Loc:** Ghaziabad, UP")
+    
+    if st.button("Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
 
-# --- 4. MAIN CHAT LOGIC ---
+# --- 5. CHAT UI ---
+st.markdown("<div class='title-text'>AMRIT-AI v1.9 PRO</div>", unsafe_allow_html=True)
+st.caption("Use <span class='web-tag'>/web</span> before your message to search the internet.", unsafe_allow_html=True)
+
+# Display Messages
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]): st.write(msg["content"])
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
 
-if prompt := st.chat_input("Movie list ya news pucho..."):
+# User Input
+if prompt := st.chat_input("Kaise madad karun, Amrit?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.write(prompt)
+    with st.chat_message("user"):
+        st.write(prompt)
 
     with st.chat_message("assistant"):
-        # STEP 1: Search trigger (Check if user is asking for live info)
-        trigger_words = ["movie", "film", "latest", "news", "match", "weather", "aaj ka", "today"]
-        web_context = ""
-        
-        if any(word in prompt.lower() for word in trigger_words):
-            with st.spinner("🌐 Searching top websites for latest list..."):
-                web_context = get_live_web_data(prompt)
+        web_info = ""
+        is_web_search = prompt.lower().strip().startswith("/web")
 
-        # STEP 2: System Prompt with Live Data
-        current_date = datetime.datetime.now(IST).strftime("%d %B %Y")
+        # Logical Routing
+        if is_web_search:
+            clean_query = prompt.lower().replace("/web", "").strip()
+            with st.spinner(f"🌐 Scraping web for '{clean_query}'..."):
+                web_info = get_live_web_data(clean_query)
+        
+        # Build System Prompt
         sys_p = f"""
-        You are AmritAI v1.8. 
-        Current Date: {current_date}. 
-        User Location: Ghaziabad.
+        You are AmritAI v1.9, developed by Amrit Pathak.
+        CONTEXT: Today is {ctx['day']}, {ctx['date']}. Time: {ctx['time']}.
+        LANGUAGE: Natural Hinglish (Mix of Hindi & English).
+        
+        WEB SEARCH MODE:
+        - Active: {is_web_search}
+        - Data Provided: {web_info if web_info else "None requested."}
         
         INSTRUCTIONS:
-        - If 'WEBSITE DATA' is provided below, use it as your primary source.
-        - Do NOT hallucinate old movies from 2023. 
-        - If the website data says a movie released today, mention it.
-        - Style: Friendly Hinglish.
+        1. If /web mode is active, strictly prioritize the 'Data Provided' above.
+        2. If NOT active, do not guess live facts like scores or prices.
+        3. Keep the tone like a helpful peer/friend.
         
-        LIVE SEARCH DATA FROM WEBSITES:
-        {web_context if web_context else "No live search needed."}
-        
-        Format:
-        THOUGHT: (Your internal logic)
-        FINAL ANSWER: (Response for Amrit)
+        FORMAT:
+        THOUGHT: (Briefly explain your logic)
+        FINAL ANSWER: (The actual response)
         """
 
-        # STEP 3: Call Groq API
         try:
             headers = {"Authorization": f"Bearer {GROQ_KEY}"}
             payload = {
                 "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "system", "content": sys_p}, *st.session_state.messages[-5:]],
-                "temperature": 0.5
+                "messages": [{"role": "system", "content": sys_p}, *st.session_state.messages[-6:]],
+                "temperature": 0.6
             }
-            
-            res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-            ans = res.json()["choices"][0]["message"]["content"]
 
-            # Handle Thinking Process
-            if "THOUGHT:" in ans and "FINAL ANSWER:" in ans:
-                parts = ans.split("FINAL ANSWER:")
+            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+            full_res = response.json()["choices"][0]["message"]["content"]
+
+            if "THOUGHT:" in full_res and "FINAL ANSWER:" in full_res:
+                parts = full_res.split("FINAL ANSWER:")
                 thought = parts[0].replace("THOUGHT:", "").strip()
-                final_ans = parts[1].strip()
+                answer = parts[1].strip()
                 
-                if show_reasoning:
-                    with st.expander("👁️ AI Thinking Process"):
-                        st.write(thought)
-                st.write(final_ans)
+                if show_thoughts:
+                    st.markdown(f"<div class='thought-box'><b>Logic:</b> {thought}</div>", unsafe_allow_html=True)
+                st.write(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
             else:
-                st.write(ans)
-                
-            st.session_state.messages.append({"role": "assistant", "content": ans})
+                st.write(full_res)
+                st.session_state.messages.append({"role": "assistant", "content": full_res})
 
-        except:
-            st.error("Bhai, API key ya network ka issue hai!")
+        except Exception as e:
+            st.error(f"Bhai error aa gaya: {e}")
